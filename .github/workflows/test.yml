@@ -1,0 +1,53 @@
+name: Dumpyara Firmware Dumper
+
+on:
+  workflow_dispatch:
+    inputs:
+      link:
+        description: "Firmware Download Link (ZIP or TAR)"
+        required: true
+
+jobs:
+  dump:
+    runs-on: ubuntu-22.04
+
+    steps:
+
+      - name: Checkout Repo (required by Actions)
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3 python3-pip unzip wget tar git
+
+      - name: Install dumpyara
+        run: |
+          pip install --upgrade pip
+          pip install dumpyara
+
+      - name: Download Firmware
+        run: |
+          mkdir firmware
+          wget "${{ github.event.inputs.link }}" -O firmware/fw.zip || \
+          wget "${{ github.event.inputs.link }}" -O firmware/fw.tar || true
+
+      - name: Extract Firmware
+        run: |
+          cd firmware
+          # Try ZIP
+          unzip -o fw.zip 2>/dev/null || true
+          # Try TAR formats
+          tar -xf fw.tar 2>/dev/null || true
+          ls -al .
+
+      - name: Run Dumpyara
+        run: |
+          mkdir output
+          python3 -m dumpyara firmware --output output
+
+      - name: Upload Dump Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dumpyara-output
+          path: output
