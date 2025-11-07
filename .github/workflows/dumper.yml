@@ -13,49 +13,48 @@ env:
 
 jobs:
   Firmware-Dump:
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
-      steps:
+    steps:
 
-      - name: Cleanup Space
-        uses: rokibhasansagar/slimhub_actions@main
+    - name: Cleanup Space
+      uses: rokibhasansagar/slimhub_actions@main
 
-      - name: Cloning Dumper
-        run: |
-             git clone https://github.com/neilchetty/Dumper-Scripts dumper --depth=1
+    - name: Cloning Dumper
+      run: |
+        git clone https://github.com/neilchetty/Dumper-Scripts dumper --depth=1
 
-     - name: SettingUp SSH Keys
-  run: |
-       mkdir -p ~/.ssh
+    - name: SettingUp SSH Keys
+      run: |
+        mkdir -p ~/.ssh
 
-       # Add host
-       ssh-keyscan -t rsa www.opencode.net >> ~/.ssh/known_hosts
+        # Add host
+        ssh-keyscan -t rsa www.opencode.net >> ~/.ssh/known_hosts
 
-       # Write private key correctly
-       printf "%s" "${{ secrets.SSHKEYPRIVATE }}" > ~/.ssh/id_rsa
-       printf "%s" "${{ secrets.SSHKEYPUBLIC }}" > ~/.ssh/id_rsa.pub
+        # Write private key correctly
+        printf "%s" "${{ secrets.SSHKEYPRIVATE }}" > ~/.ssh/id_rsa
+        printf "%s" "${{ secrets.SSHKEYPUBLIC }}" > ~/.ssh/id_rsa.pub
 
-       chmod 600 ~/.ssh/id_rsa
-       chmod 600 ~/.ssh/id_rsa.pub
+        chmod 600 ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa.pub
 
-       # Start ssh-agent properly
-       eval "$(ssh-agent -s)"
+        # Start ssh-agent properly
+        eval "$(ssh-agent -s)"
 
-       # Add key to agent
-       ssh-add ~/.ssh/id_rsa
+        # Add key to agent
+        ssh-add ~/.ssh/id_rsa
 
+    - name: Installing Requirements
+      run: |
+        cd dumper
+        bash setup.sh
 
-      - name: Installing Requirements
-        run: |
-             cd dumper
-             bash setup.sh
-
-      - name: Firmware is Dumping
-        run: |
-             cd dumper
-             export PUSH_TO_GITLAB=true
-             echo "www.opencode.net" > .gitlab_instance
-             echo "Neil-Firmware-Dumps" > .gitlab_group
-             echo "${{ secrets.GITLABTOKEN }}" > .gitlab_token
-             echo "${{ secrets.TGTOKEN }}" > .tg_token
-             bash dumper.sh $LINK
+    - name: Firmware is Dumping
+      run: |
+        cd dumper
+        export PUSH_TO_GITLAB=true
+        echo "www.opencode.net" > .gitlab_instance
+        echo "Neil-Firmware-Dumps" > .gitlab_group
+        echo "${{ secrets.GITLABTOKEN }}" > .gitlab_token
+        echo "${{ secrets.TGTOKEN }}" > .tg_token
+        bash dumper.sh $LINK
