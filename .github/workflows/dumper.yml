@@ -18,6 +18,9 @@ env:
 jobs:
   dump:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: /tmp
 
     steps:
       - name: Ensure Workspace Exists
