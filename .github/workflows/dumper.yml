@@ -107,7 +107,6 @@ jobs:
             --content-disposition=always \
             --http-accept-gzip=true \
             --check-certificate=true \
-            --max-redirects=20 \
             -d . \
             "${ROM_LINK}"
 
