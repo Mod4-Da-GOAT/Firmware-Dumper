@@ -88,21 +88,53 @@ jobs:
 
       - name: Download Firmware Fast
         run: |
-         echo "::group::Download Firmware (Fast & Redirect-Compatible)"
-         mkdir -p "$GITHUB_WORKSPACE/rom"
-         cd "$GITHUB_WORKSPACE/rom"
+          echo "::group::Download Firmware (Full Redirect Handling)"
+          mkdir -p "$GITHUB_WORKSPACE/rom"
+          cd "$GITHUB_WORKSPACE/rom"
 
-         # Download using aria2c with 16 connections, follow redirects
-         aria2c -x16 -s16 -j1 -c -d . -o firmware.bin "${ROM_LINK}"
+          # Download with full redirect & filename extraction
+          aria2c \
+            --max-connection-per-server=16 \
+            --split=16 \
+            --continue=true \
+            --auto-file-renaming=false \
+            --allow-overwrite=true \
+            --follow-metalink=mem \
+            --follow-torrent=true \
+            --enable-http-keep-alive=true \
+            --enable-http-pipelining=true \
+            --content-disposition-default-utf8=true \
+            --content-disposition=always \
+            --http-accept-gzip=true \
+            --check-certificate=true \
+            --max-redirect=20 \
+            -d . \
+            "${ROM_LINK}"
 
-         # Pick the downloaded file
-         export FIRMWARE_FILE=$(ls -1t | head -n1)
-         echo "Downloaded firmware file: $FIRMWARE_FILE"
+          # Pick newest file (aria2 keeps real name)
+          export FIRMWARE_FILE=$(ls -1t | head -n1)
+          echo "Downloaded file: $FIRMWARE_FILE"
 
-         # Post-download cleanup to free space
-         export ROOT_RESERVE_MB=5120 TEMP_RESERVE_MB=5120
-         bash /tmp/maximize.space.sh 2>/dev/null || true
-         echo "::endgroup::"
+          # Reject HTML or webpage downloads (non-direct link fallback)
+          if file "$FIRMWARE_FILE" | grep -qiE "HTML|XML|text"; then
+            echo "ERROR: The link did NOT point to a file, but to a webpage."
+            echo "This filehost requires a direct link or alternate method."
+            exit 1
+          fi
+
+          # Check for empty or invalid file
+          if [ ! -s "$FIRMWARE_FILE" ]; then
+            echo "ERROR: Download failed or file is empty."
+            exit 1
+          fi
+
+          file "$FIRMWARE_FILE"
+          ls -lh "$FIRMWARE_FILE"
+
+          export ROOT_RESERVE_MB=5120 TEMP_RESERVE_MB=5120
+          bash /tmp/maximize.space.sh 2>/dev/null || true
+          echo "::endgroup::"
+
 
           
       # --- Dump Firmware ---
