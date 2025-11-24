@@ -85,35 +85,43 @@ jobs:
           sudo apt-get update -qy
           sudo apt-get install -y wget tar jq
 
-          # Fetch latest release JSON
-           RELEASE_JSON=$(wget -qO- https://api.github.com/repos/aria2/aria2/releases/latest)
+          # Fetch latest release info
+          RELEASE_JSON=$(wget -qO- https://api.github.com/repos/aria2/aria2/releases/latest)
 
-          # Extract version number (e.g., 1.37.0)
+          # Extract version number
           VERSION=$(echo "$RELEASE_JSON" | jq -r '.tag_name' | sed 's/^release-//; s/^v//')
           echo "Latest aria2 version: $VERSION"
 
-          # Construct filename exactly as published
-          FILE="aria2-${VERSION}-linux-gnu-64bit-build1.tar.bz2"
+         # Attempt to find a linux‑gnu 64bit build asset
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r \
+            '.assets[] |
+             select(.name | test("linux.*64bit")) |
+              .browser_download_url' | head -n1)
 
-          # Extract download URL dynamically to avoid mismatches
-          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r ".assets[] | select(.name == \"$FILE\") | .browser_download_url")
-
+          # Fallback: if linux binary not found, use source tarball
           if [ -z "$DOWNLOAD_URL" ]; then
-            echo "ERROR: Could not find asset: $FILE"
-            exit 1
-           fi
+            echo "WARNING: No linux‑gnu 64bit build found; falling back to source."
+            DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r \
+              '.assets[] |
+               select(.name | endswith(".tar.bz2") or endswith(".tar.gz")) |
+               .browser_download_url' | head -n1)
+            if [ -z "$DOWNLOAD_URL" ]; then
+              echo "ERROR: Could not locate any suitable aria2 asset."
+              exit 1
+            fi
+          fi
 
           echo "Downloading: $DOWNLOAD_URL"
+          wget -q "$DOWNLOAD_URL" -O aria2_download
+          mkdir aria2_extract
+          tar -xf aria2_download -C aria2_extract --strip-components=1
 
-          wget -q "$DOWNLOAD_URL" -O aria2.tar.bz2
-          tar -xf aria2.tar.bz2
+         sudo mv aria2_extract/aria2c /usr/local/bin/aria2c || true
+          sudo chmod +x /usr/local/bin/aria2c
 
-          DIR=$(find . -maxdepth 1 -type d -name "aria2-*")
-          sudo mv "$DIR/aria2c" /usr/local/bin/aria2c
-
-          # Verify
           aria2c -v
           echo "::endgroup::"
+
 
       - name: Download Firmware Fast
         run: |
