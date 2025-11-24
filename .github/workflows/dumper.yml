@@ -79,12 +79,28 @@ jobs:
           sed -i '/7z x .*\.img/ c\simg2img "\$1" "\$2"' dumper.sh
           echo "::endgroup::"
           
-      - name: Install aria2 for Fast Downloads
+      - name: Install latest aria2
         run: |
-         echo "::group::Install aria2"
-         sudo apt-get update -qy
-         sudo apt-get install -y aria2
-         echo "::endgroup::"
+          echo "::group::Install latest aria2"
+          sudo apt-get update -qy
+          sudo apt-get install -y wget tar
+
+          # Fetch latest release tag automatically
+          LATEST_TAG=$(wget -qO- https://api.github.com/repos/aria2/aria2/releases/latest | grep tag_name | cut -d '"' -f 4)
+          echo "Latest aria2 release: $LATEST_TAG"
+
+          # Download prebuilt static binary
+          wget -q https://github.com/aria2/aria2/releases/download/${LATEST_TAG}/aria2-${LATEST_TAG#v}-linux-gnu-64bit-build1.tar.bz2 -O aria2.tar.bz2
+
+          # Extract
+          tar -xf aria2.tar.bz2
+          DIR=$(find . -maxdepth 1 -type d -name "aria2-*")
+          sudo mv "$DIR/aria2c" /usr/local/bin/aria2c
+
+          # Verify version
+          aria2c -v
+
+          echo "::endgroup::"
 
       - name: Download Firmware Fast
         run: |
@@ -107,6 +123,7 @@ jobs:
             --content-disposition=always \
             --http-accept-gzip=true \
             --check-certificate=true \
+            --max-redirects=20
             -d . \
             "${ROM_LINK}"
 
